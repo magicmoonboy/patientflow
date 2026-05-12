@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SummarizePatientIntakeJob;
 use App\Models\Appointment;
 use App\Models\Payment;
 use Illuminate\Http\Request;
@@ -53,6 +54,10 @@ class StripeWebhookController extends Controller
 
         $payment->update(['status' => Payment::STATUS_SUCCEEDED]);
         $payment->appointment()->update(['status' => Appointment::STATUS_CONFIRMED]);
+
+        if ($payment->appointment->intake_notes && ! $payment->appointment->intake_summary) {
+            SummarizePatientIntakeJob::dispatch($payment->appointment_id);
+        }
     }
 
     private function handleFailed(Event $event): void
