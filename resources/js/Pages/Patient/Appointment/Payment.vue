@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
+import { computed, onMounted, ref } from 'vue';
+import { loadStripe, type Stripe, type StripeElements, type StripePaymentElement } from '@stripe/stripe-js';
 
 interface Appointment {
     id: number;
@@ -38,6 +40,70 @@ const statusBadge = computed(() => {
         return { label: 'Wacht op betaling', class: 'bg-amber-100 text-amber-800' };
     }
     return { label: props.appointment.status, class: 'bg-gray-100 text-gray-800' };
+});
+
+const isPaid = computed(() => props.appointment.status === 'confirmed');
+
+const stripe = ref<Stripe | null>(null);
+const elements = ref<StripeElements | null>(null);
+const paymentElement = ref<StripePaymentElement | null>(null);
+const paymentElementRef = ref<HTMLDivElement | null>(null);
+const errorMessage = ref<string | null>(null);
+const submitting = ref(false);
+const initialised = ref(false);
+
+const initStripe = async () => {
+    if (isPaid.value) return;
+
+    try {
+        const { data } = await axios.post(route('payments.intent'), {
+            appointment_id: props.appointment.id,
+        });
+
+        const stripeInstance = await loadStripe(data.publishable_key);
+        if (!stripeInstance) throw new Error('Stripe.js failed to load');
+        stripe.value = stripeInstance;
+
+        elements.value = stripeInstance.elements({ clientSecret: data.client_secret });
+        paymentElement.value = elements.value.create('payment');
+
+        if (paymentElementRef.value) {
+            paymentElement.value.mount(paymentElementRef.value);
+        }
+
+        initialised.value = true;
+    } catch (e: any) {
+        errorMessage.value = e?.response?.data?.message ?? e?.message ?? 'Kon Stripe niet initialiseren';
+    }
+};
+
+const submit = async () => {
+    if (!stripe.value || !elements.value) return;
+
+    submitting.value = true;
+    errorMessage.value = null;
+
+    const { error } = await stripe.value.confirmPayment({
+        elements: elements.value,
+        confirmParams: {
+            return_url: window.location.origin + route('patient.appointments.payment', props.appointment.id, false),
+        },
+        redirect: 'if_required',
+    });
+
+    submitting.value = false;
+
+    if (error) {
+        errorMessage.value = error.message ?? 'Betaling mislukt';
+        return;
+    }
+
+    // Webhook will flip appointment to confirmed; reload to pick up new state.
+    router.reload({ only: ['appointment'] });
+};
+
+onMounted(() => {
+    initStripe();
 });
 </script>
 
@@ -85,11 +151,31 @@ const statusBadge = computed(() => {
                     </dl>
                 </div>
 
-                <div class="rounded-lg border border-dashed border-indigo-300 bg-indigo-50/40 p-6 text-center">
-                    <p class="font-medium text-indigo-700">Stripe betalingsformulier komt in PF-5</p>
-                    <p class="mt-1 text-sm text-indigo-600/70">
-                        Hier verschijnt straks de Stripe Elements-kaart met "Betaal € {{ feeEuros }}" knop
+                <div v-if="isPaid" class="rounded-lg border border-emerald-200 bg-emerald-50/60 p-6 text-center">
+                    <p class="text-lg font-semibold text-emerald-800">✓ Betaling ontvangen</p>
+                    <p class="mt-1 text-sm text-emerald-700">Je afspraak is bevestigd.</p>
+                </div>
+
+                <div v-else class="rounded-lg bg-white p-6 shadow-sm">
+                    <h4 class="font-semibold text-gray-900">Betaalgegevens</h4>
+                    <p class="text-sm text-gray-500">Stripe test-modus · gebruik kaart 4242 4242 4242 4242, willekeurige CVC en toekomstige datum.</p>
+
+                    <div ref="paymentElementRef" class="mt-4 min-h-[40px]">
+                        <p v-if="!initialised" class="text-sm text-gray-400">Stripe wordt geladen...</p>
+                    </div>
+
+                    <p v-if="errorMessage" class="mt-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                        {{ errorMessage }}
                     </p>
+
+                    <button
+                        type="button"
+                        @click="submit"
+                        :disabled="!initialised || submitting"
+                        class="mt-4 w-full rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                        {{ submitting ? 'Bezig met betalen...' : `Betaal € ${feeEuros}` }}
+                    </button>
                 </div>
 
                 <Link

@@ -50,6 +50,12 @@ Route::middleware(['auth', 'role:patient'])->prefix('patient')->name('patient.')
     Route::get('/appointments/{appointment}/payment', [\App\Http\Controllers\Patient\AppointmentController::class, 'paymentPage'])->name('appointments.payment');
 });
 
+Route::middleware('auth')->group(function () {
+    Route::post('/payments/intent', [\App\Http\Controllers\PaymentController::class, 'createIntent'])->name('payments.intent');
+});
+
+Route::post('/webhooks/stripe', [\App\Http\Controllers\StripeWebhookController::class, 'handle'])->name('webhooks.stripe');
+
 Route::middleware(['auth', 'role:specialist'])->prefix('specialist')->name('specialist.')->group(function () {
     Route::get('/dashboard', function () {
         $user = Auth::user()->load('specialistProfile');
