@@ -11,7 +11,19 @@ const form = useForm({
     email: '',
     password: '',
     password_confirmation: '',
+    role: 'patient' as 'patient' | 'specialist',
+    specialty: '',
+    consultation_fee_euros: '25',
 });
+
+const specialties = [
+    'Huisarts',
+    'Fysiotherapeut',
+    'Psycholoog',
+    'Diëtist',
+    'Osteopaat',
+    'Logopedist',
+];
 
 const submit = () => {
     form.post(route('register'), {
@@ -24,12 +36,38 @@ const submit = () => {
 
 <template>
     <GuestLayout>
-        <Head title="Register" />
+        <Head title="Registreer" />
 
         <form @submit.prevent="submit">
             <div>
-                <InputLabel for="name" value="Name" />
+                <InputLabel value="Ik ben een..." />
 
+                <div class="mt-2 grid grid-cols-2 gap-3">
+                    <label
+                        class="flex cursor-pointer items-center justify-center rounded-lg border px-4 py-3 text-sm font-medium transition"
+                        :class="form.role === 'patient'
+                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
+                    >
+                        <input v-model="form.role" type="radio" value="patient" class="sr-only" />
+                        Patiënt
+                    </label>
+                    <label
+                        class="flex cursor-pointer items-center justify-center rounded-lg border px-4 py-3 text-sm font-medium transition"
+                        :class="form.role === 'specialist'
+                            ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
+                    >
+                        <input v-model="form.role" type="radio" value="specialist" class="sr-only" />
+                        Specialist
+                    </label>
+                </div>
+
+                <InputError class="mt-2" :message="form.errors.role" />
+            </div>
+
+            <div class="mt-4">
+                <InputLabel for="name" value="Naam" />
                 <TextInput
                     id="name"
                     type="text"
@@ -39,13 +77,11 @@ const submit = () => {
                     autofocus
                     autocomplete="name"
                 />
-
                 <InputError class="mt-2" :message="form.errors.name" />
             </div>
 
             <div class="mt-4">
-                <InputLabel for="email" value="Email" />
-
+                <InputLabel for="email" value="E-mail" />
                 <TextInput
                     id="email"
                     type="email"
@@ -54,13 +90,41 @@ const submit = () => {
                     required
                     autocomplete="username"
                 />
-
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>
 
-            <div class="mt-4">
-                <InputLabel for="password" value="Password" />
+            <div v-if="form.role === 'specialist'" class="mt-4 space-y-4 rounded-lg border border-indigo-100 bg-indigo-50/50 p-4">
+                <div>
+                    <InputLabel for="specialty" value="Specialisme" />
+                    <select
+                        id="specialty"
+                        v-model="form.specialty"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        required
+                    >
+                        <option value="" disabled>Kies een specialisme</option>
+                        <option v-for="s in specialties" :key="s" :value="s">{{ s }}</option>
+                    </select>
+                    <InputError class="mt-2" :message="form.errors.specialty" />
+                </div>
 
+                <div>
+                    <InputLabel for="fee" value="Consult-tarief (€)" />
+                    <TextInput
+                        id="fee"
+                        type="number"
+                        min="10"
+                        max="500"
+                        class="mt-1 block w-full"
+                        v-model="form.consultation_fee_euros"
+                        required
+                    />
+                    <InputError class="mt-2" :message="form.errors.consultation_fee_euros" />
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <InputLabel for="password" value="Wachtwoord" />
                 <TextInput
                     id="password"
                     type="password"
@@ -69,16 +133,11 @@ const submit = () => {
                     required
                     autocomplete="new-password"
                 />
-
                 <InputError class="mt-2" :message="form.errors.password" />
             </div>
 
             <div class="mt-4">
-                <InputLabel
-                    for="password_confirmation"
-                    value="Confirm Password"
-                />
-
+                <InputLabel for="password_confirmation" value="Wachtwoord bevestigen" />
                 <TextInput
                     id="password_confirmation"
                     type="password"
@@ -87,19 +146,15 @@ const submit = () => {
                     required
                     autocomplete="new-password"
                 />
-
-                <InputError
-                    class="mt-2"
-                    :message="form.errors.password_confirmation"
-                />
+                <InputError class="mt-2" :message="form.errors.password_confirmation" />
             </div>
 
-            <div class="mt-4 flex items-center justify-end">
+            <div class="mt-6 flex items-center justify-end">
                 <Link
                     :href="route('login')"
-                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    class="rounded-md text-sm text-gray-600 underline hover:text-gray-900"
                 >
-                    Already registered?
+                    Al een account?
                 </Link>
 
                 <PrimaryButton
@@ -107,7 +162,7 @@ const submit = () => {
                     :class="{ 'opacity-25': form.processing }"
                     :disabled="form.processing"
                 >
-                    Register
+                    Registreer
                 </PrimaryButton>
             </div>
         </form>

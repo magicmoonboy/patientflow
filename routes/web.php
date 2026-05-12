@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -15,8 +16,28 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+    $user = Auth::user();
+
+    return $user->isSpecialist()
+        ? redirect()->route('specialist.dashboard')
+        : redirect()->route('patient.dashboard');
+})->middleware(['auth'])->name('dashboard');
+
+Route::middleware(['auth', 'role:patient'])->prefix('patient')->name('patient.')->group(function () {
+    Route::get('/dashboard', function () {
+        return Inertia::render('Patient/Dashboard');
+    })->name('dashboard');
+});
+
+Route::middleware(['auth', 'role:specialist'])->prefix('specialist')->name('specialist.')->group(function () {
+    Route::get('/dashboard', function () {
+        $user = Auth::user()->load('specialistProfile');
+
+        return Inertia::render('Specialist/Dashboard', [
+            'profile' => $user->specialistProfile,
+        ]);
+    })->name('dashboard');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
