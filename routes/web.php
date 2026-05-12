@@ -57,13 +57,8 @@ Route::middleware('auth')->group(function () {
 Route::post('/webhooks/stripe', [\App\Http\Controllers\StripeWebhookController::class, 'handle'])->name('webhooks.stripe');
 
 Route::middleware(['auth', 'role:specialist'])->prefix('specialist')->name('specialist.')->group(function () {
-    Route::get('/dashboard', function () {
-        $user = Auth::user()->load('specialistProfile');
-
-        return Inertia::render('Specialist/Dashboard', [
-            'profile' => $user->specialistProfile,
-        ]);
-    })->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\Specialist\DashboardController::class, 'index'])->name('dashboard');
+    Route::patch('/appointments/{appointment}/complete', [\App\Http\Controllers\Specialist\AppointmentController::class, 'complete'])->name('appointments.complete');
 });
 
 Route::middleware('auth')->group(function () {
