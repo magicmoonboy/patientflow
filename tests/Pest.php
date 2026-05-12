@@ -14,6 +14,11 @@ use Tests\TestCase;
 |
 */
 
+// Laravel 11's vendor config defaults reference PDO::MYSQL_ATTR_SSL_CA which is
+// deprecated in PHP 8.5. The app's own config/database.php uses the new path;
+// vendor files aren't editable, so silence the notice at test bootstrap.
+error_reporting(error_reporting() & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
